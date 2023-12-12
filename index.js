@@ -78,7 +78,7 @@ const handleMessage = async ({ message }) => {
       dataObj[id]['modality'] = modality;
       dataObj[id]['queueSize'] = queueSize;
 
-      console.log('dataobj: ' + JSON.stringify(dataObj));
+      // console.log('dataobj: ' + JSON.stringify(dataObj));
 
 
     }
@@ -135,7 +135,7 @@ const disconnectConsumer = async (lastMessageTime, isFirstMessage) => {
         checkDataObjEmpty(dataObj)) {
       await consumer.disconnect();
 
-      console.log(dataObj);
+      // console.log(dataObj);
 
       const stringDataObj = JSON.stringify(dataObj, null, 2);
       fs.writeFileSync('consumer_output.json', stringDataObj);
