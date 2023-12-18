@@ -12,6 +12,7 @@
     "dependencies": {
       "@kafkajs/confluent-schema-registry": "^3.3.0",
       "kafkajs": "^2.2.4",
-      "googleapis": "^129.0.0"
+      "googleapis": "^129.0.0",
+      "h3-js":"^4.1.0"
     }
   }

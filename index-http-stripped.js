@@ -78,7 +78,7 @@ const handleMessage = async ({ message }) => {
       dataObj[id]['modality'] = modality;
       dataObj[id]['queueSize'] = queueSize;
 
-      // console.log('dataobj: ' + JSON.stringify(dataObj));
+      console.log('dataobj: ' + JSON.stringify(dataObj));
 
 
     }
