@@ -6,12 +6,23 @@ const h3 = require('h3-js');
 //Google config
 const fs = require('fs');
 const {google} = require("googleapis");
-const auth = new google.auth.GoogleAuth({
-      keyFile: "./service-account.json",
-      scopes: "https://www.googleapis.com/auth/spreadsheets",
+
+// const auth = new google.auth.GoogleAuth({
+//       keyFile: "./service-account.json",
+//       scopes: "https://www.googleapis.com/auth/spreadsheets",
+// });
+
+// const auth2 = new google.auth.GoogleAuth({
+//   keyFile: "./gcp-service-account.json",
+//   scopes: "https://www.googleapis.com/auth/spreadsheets",
+// });
+
+const auth3 = new google.auth.GoogleAuth({
+  keyFile: "./gsheet1-service-account.json",
+  scopes: "https://www.googleapis.com/auth/spreadsheets",
 });
 
-const client = auth.getClient();
+const client = auth3.getClient();
 const googleSheets = google.sheets({ version: "v4", auth: client });
 const spreadsheetId = "1A0pQBTsC052QbxcnH_qhDy0FtUQO2M2qHBURGUU02tM";
 
@@ -379,22 +390,17 @@ function heartbeat() {
       for (const localItem of localArray) {
         const idB = localItem[0];
         const timestampB = new Date(localItem[1]);
-        let found = false;
 
         for (let index = 0; index < persistentArray.length; index++) {
           const persistentItem = persistentArray[index];
           const timestampA = new Date(persistentItem[1]);
           const idA = persistentItem[0];
-          let found = true;
 
           if (idA === idB && timestampA < timestampB) {
             persistentArray[index] = localItem;
             break; // Exit the loop once the condition is met
           }
         }
-        if (found == false) {
-          persistentArray.push(localItem)
-        } 
       }
 
       // sort persistent array
@@ -415,7 +421,7 @@ function heartbeat() {
 
       googleSheets.spreadsheets.values.update(
         {
-          auth: auth,
+          auth: auth3,
           spreadsheetId: spreadsheetId,
           range: "mfcCapacity!A2",
           valueInputOption: "USER_ENTERED",
@@ -433,5 +439,3 @@ function heartbeat() {
 const heartbeatEvery = 1 // seconds value
 setTimeout(heartbeat, heartbeatEvery*1000);
 runConsumer().catch(console.error);
-
-

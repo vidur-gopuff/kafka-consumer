@@ -323,15 +323,6 @@ function checkKey(key,obj,returnIfNotPresent) {
   }
 }
 
-// async function getSpreadSheetValues({inSpreadsheetId, inAuth, sheetName}) {
-//   const res = await sheets.spreadsheets.values.get({
-//     spreadsheetId: inSpreadsheetId,
-//     auth: inAuth,
-//     range: sheetName
-//   });
-//   return res;
-// }
-
 
 function heartbeat() {
   try {
@@ -340,23 +331,14 @@ function heartbeat() {
     // console.log(localData['MFC Data']);
     
     if (localData['MFC Data'] != undefined) {
-
-
-      // read from gsheet code
-
-      // const readArray = getSpreadSheetValues(inSpreadsheetId= spreadsheetId, inAuth= auth, "mfcCapacity")
-
-      // const readArray = console.log(googleSheets.spreadsheets.values.get(
-      //   {
-      //     auth: auth,
-      //     spreadsheetId: spreadsheetId,
-      //     range: "mfcCapacity",
-      //   } 
-      // ));
-
-    
-      const persistentData = fs.readFileSync('start-mfc-capacity.json', 'utf8')
-      const persistentArray = JSON.parse(persistentData);
+      let persistentArray;
+      try {
+        const persistentData = fs.readFileSync('persistent-mfc-data.json', 'utf8');
+        persistentArray = JSON.parse(persistentData);
+      }  
+      catch {
+        persistentArray = {};
+      }
       
       console.log(persistentArray)
       
@@ -376,37 +358,60 @@ function heartbeat() {
 
       console.log(localArray);
 
-      localArray.forEach(localItem => {
-        const id = localItem[0];
-        const timestampB = new Date(localItem[1]);
+      // // regular loop
+
+      // localArray.forEach(localItem => {
+      //   const idB = localItem[0];
+      //   const timestampB = new Date(localItem[1]);
       
-        persistentArray.forEach((persistentItem, index) => {
+      //   persistentArray.forEach((persistentItem, index) => {
+      //     const timestampA = new Date(persistentItem[1]);
+      //     const idA = persistentItem[0];
+      
+      //     if (idA === idB && timestampA < timestampB) {
+      //       persistentArray[index] = localItem;
+      //     }
+      //   });
+      // });
+
+      // faster loop
+
+      for (const localItem of localArray) {
+        const idB = localItem[0];
+        const timestampB = new Date(localItem[1]);
+        let found = false;
+
+        for (let index = 0; index < persistentArray.length; index++) {
+          const persistentItem = persistentArray[index];
           const timestampA = new Date(persistentItem[1]);
           const idA = persistentItem[0];
-      
-          if (idA === id && timestampA < timestampB) {
+          let found = true;
+
+          if (idA === idB && timestampA < timestampB) {
             persistentArray[index] = localItem;
+            break; // Exit the loop once the condition is met
           }
-        });
+        }
+        if (found == false) {
+          persistentArray.push(localItem)
+        } 
+      }
+
+      // sort persistent array
+      
+      const sortedPersistentArray = persistentArray.sort((a, b) => {
+        const idA = a[0];
+        const idB = b[0];
+      
+        if (idA < idB) {
+          return -1;
+        } else if (idA > idB) {
+          return 1;
+        }
+        return 0;
       });
       
-
-      fs.writeFileSync('start-mfc-capacity.json', JSON.stringify(persistenArray, null, 2), 'utf8');
-
-
-      // clear code
-
-      // googleSheets.spreadsheets.values.clear({
-      //   auth,
-      //   spreadsheetId,        
-      //   range: "mfcCapacity!A2"
-      // })
-
-
-
-      // replace code
-
-      // const updateArray = [['mfc','ts','newOrders','ordersPacked', 'driversInQueue', 'driversDelivering', 'driversReturning'], ...localArray];
+      fs.writeFileSync('persistent-mfc-data.json', JSON.stringify(sortedPersistentArray, null, 2), 'utf8');
 
       googleSheets.spreadsheets.values.update(
         {
@@ -414,21 +419,9 @@ function heartbeat() {
           spreadsheetId: spreadsheetId,
           range: "mfcCapacity!A2",
           valueInputOption: "USER_ENTERED",
-          resource: {majorDimension: "ROWS", values: persistentArray},
+          resource: {majorDimension: "ROWS", values: sortedPersistentArray},
         }
       );
-
-      // append code
-
-      // const appendArray = localArray
-
-      // googleSheets.spreadsheets.values.append({
-      //     auth,
-      //     spreadsheetId,        
-      //     range: "mfcCapacity!A2",
-      //       valueInputOption: "USER_ENTERED",
-      //       requestBody: { majorDimension: "ROWS", values:appendArray}
-      //   });  
     }
     setTimeout(heartbeat, heartbeatEvery*1000);
   } catch {
@@ -437,7 +430,7 @@ function heartbeat() {
 }
 
 // final super function to run
-const heartbeatEvery = 5 // seconds value
+const heartbeatEvery = 1 // seconds value
 setTimeout(heartbeat, heartbeatEvery*1000);
 runConsumer().catch(console.error);
 

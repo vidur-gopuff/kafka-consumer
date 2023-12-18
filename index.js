@@ -4,14 +4,40 @@
 const h3 = require('h3-js');
 
 //Google config
-//const fs = require('fs');
+const fs = require('fs');
+const path = require('path');
+function getJsonFiles(directoryPath) {
+  let files = fs.readdirSync(directoryPath);
+  let jsonFiles = files.filter(function(file) {
+      return path.extname(file).toLowerCase() === '.json';
+  }).map(function(file) {
+      return path.join(directoryPath, file);
+  });
+
+  return jsonFiles;
+}
+function addToAuthObj(path,authObj={}) {
+  let auth = new google.auth.GoogleAuth({
+    keyFile: path,
+    scopes: "https://www.googleapis.com/auth/spreadsheets",
+  });
+  let client = auth.getClient();
+  let googleSheets = google.sheets({ version: "v4", auth: client });
+  let key = Object.keys(authObj).length;
+  authObj[key] = {auth, googleSheets};  
+  return authObj;
+}
+function getRandomInt(max) {
+  return Math.floor(Math.random() * (max + 1));
+}
+
 const {google} = require("googleapis");
-const auth = new google.auth.GoogleAuth({
-      keyFile: "./service-account.json",
-      scopes: "https://www.googleapis.com/auth/spreadsheets",
-});
-const client = auth.getClient();
-const googleSheets = google.sheets({ version: "v4", auth: client });
+let jsons = getJsonFiles('./auth_jsons');
+let authObj = {};
+for (let j of jsons) {
+  authObj=addToAuthObj(j,authObj);  
+}
+
 const spreadsheetId = "1A0pQBTsC052QbxcnH_qhDy0FtUQO2M2qHBURGUU02tM";
 
 
@@ -114,64 +140,40 @@ const messageQueue = []; // Holds messages for processing
 const ukArr = [1183, 1186, 1187, 1188, 1189, 1191, 1192, 1193, 1225, 1238, 1249, 1253, 1254,1291, 1292, 1294, 1301, 1302, 1308, 1309, 1317, 1318, 1319, 1321, 1323, 1352, 1353, 1368, 1369, 1375, 1380, 1381, 1383, 1391, 1398, 1537];
 let dataObj={};
 
-
-function isTimestampInWorkingDay(timestamp) {
-  const eventDate = new Date(timestamp);
-  const currentDate = new Date();
-
-  const startOfWorkingDay = new Date(
-    currentDate.getFullYear(),
-    currentDate.getMonth(),
-    currentDate.getDate() + (currentDate.getHours() < 3 ? -1 : 0),
-    6, 0, 0, 0
-  );
-
-  const endOfWorkingDay = new Date(
-    currentDate.getFullYear(),
-    currentDate.getMonth(),
-    currentDate.getDate() + (currentDate.getHours() < 3 ? 0 : 1),
-    24, 0, 0, 0
-  );
-
-  return eventDate >= startOfWorkingDay && eventDate <= endOfWorkingDay;
-}
-
 async function handleMessage({ message }) {
   try {
     const info = await registry.decode(message.value);
     const ts = info.timestamp;
     
-    if (isTimestampInWorkingDay(ts)) {
-      const event = info.meta.event_name;
-      //console.log(event)
-      switch (event) {
-        case 'VelocityMetricsAggregated':
-          handleVelocityMetricsAggregated(info.data,ts);
-          break;
-        case 'MfcOrderSupplyState':
-          handleMFCState(info.data,ts);
-          break;
-        case 'DriverMarketplaceActivity': 
-          handleMktplace(info.data,ts);
-          break;
-        case 'DriverStartedDelivery':
-          handleDriverStartedDelivery(info.data,ts);
-          break;
-        case 'TripDurationEstimated':
-          handleTripDuration(info.data,ts);
-          break;
-        case 'VehiclePositionUpdate':
-          handlePosition(info.data,ts);
-          break;
-        case 'TripCompleted':
-          handleTripComplete(info.data,ts);
-          break;
-        case 'EnteredVirtualQueue':
-          handleDriverJoin(info.data,ts);
-          break;
-        default:
-          console.log(event);
-      }
+    const event = info.meta.event_name;
+    //console.log(event)
+    switch (event) {
+      case 'VelocityMetricsAggregated':
+        handleVelocityMetricsAggregated(info.data,ts);
+        break;
+      case 'MfcOrderSupplyState':
+        handleMFCState(info.data,ts);
+        break;
+      case 'DriverMarketplaceActivity': 
+        handleMktplace(info.data,ts);
+        break;
+      case 'DriverStartedDelivery':
+        handleDriverStartedDelivery(info.data,ts);
+        break;
+      case 'TripDurationEstimated':
+        handleTripDuration(info.data,ts);
+        break;
+      case 'VehiclePositionUpdate':
+        handlePosition(info.data,ts);
+        break;
+      case 'TripCompleted':
+        handleTripComplete(info.data,ts);
+        break;
+      case 'EnteredVirtualQueue':
+        handleDriverJoin(info.data,ts);
+        break;
+      default:
+        console.log(event);
     }
   } catch (error) {
     console.error('Error handling message:', error);
@@ -356,15 +358,21 @@ function heartbeat() {
 
 
 async function writeToSheet(data) {
+  let randInt = getRandomInt(Object.keys(authObj).length-1);
+  let randomAuth = authObj[randInt];
+
+  let googleSheets = randomAuth['googleSheets'];
+  let auth = randomAuth['auth'];
+
   try {
     const response = await googleSheets.spreadsheets.values.get({
       auth,
       spreadsheetId,
-      range: "DTest!A2:G"
+      range: "Capacity!A2:G"
     });
 
     
-    let existingRows = [] 
+    let existingRows = []; 
     if (response.data.values != undefined) {
       existingRows = response.data.values;
     }
@@ -394,29 +402,29 @@ async function writeToSheet(data) {
       await googleSheets.spreadsheets.values.update({
         auth: auth,
         spreadsheetId: spreadsheetId,
-        range: "DTest!A2",
+        range: "Capacity!A2",
         valueInputOption: 'USER_ENTERED',
         resource: {
           values: existingRows
         }
       });
-      await googleSheets.spreadsheets.values.update({
-        auth: auth,
-        spreadsheetId: spreadsheetId,
-        range: "DTest!I1",
-        valueInputOption: 'USER_ENTERED',
-        resource: {
-          values: [[new Date().toISOString().split('.')[0]]]
-        }
-      });    
     }
+    await googleSheets.spreadsheets.values.update({
+      auth: auth,
+      spreadsheetId: spreadsheetId,
+      range: "Capacity!I1",
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [[new Date().toISOString().split('.')[0]]]
+      }
+    });     
   } catch (err) {
     console.error('Error in writeToSheet:', err);
   }    
 }
 
 // final super function to run
-const heartbeatEvery = 90;
+const heartbeatEvery = 2;
 setTimeout(heartbeat, heartbeatEvery*1000);
 runConsumer().catch(console.error);
 
