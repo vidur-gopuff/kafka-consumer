@@ -229,9 +229,12 @@ function handleMFCState(jsonObj,ts) {
     const ordersPacked = checkKey('orders_packed',jsonObj,0);
     const driversInQueue = checkKey('virtual_queue_size',jsonObj,0);
     const driversDelivering = checkKey('number_drivers_in_delivery',jsonObj,0);
-    const driversReturning = checkKey('number_drivers_returning',jsonObj,0);
-  
-    dataObj = recursiveAdd(dataObj,['MFC Data',mfc,'Status'],{ts,newOrders,ordersPacked,driversInQueue,driversDelivering,driversReturning});
+    const driversReturningAccepted = checkKey('number_drivers_returning',jsonObj,0);
+    const driversTotal = checkKey('number_drivers_total',jsonObj,0);
+    const driversReturning = driversTotal - driversInQueue - driversDelivering
+    const driversReturningNotAccepted = driversReturning - driversReturningAccepted
+    
+    dataObj = recursiveAdd(dataObj,['MFC Data',mfc,'Status'],{ts,newOrders,ordersPacked,driversInQueue,driversDelivering,driversReturningAccepted,driversReturningNotAccepted,driversReturning,driversTotal});
   }
 }
 
@@ -386,7 +389,7 @@ async function writeToSheet(data) {
 
     let haveUpdate = false;
     for (let mfc in data) {
-      let outline = [mfc,data[mfc]['Status']['ts'].split('.')[0],data[mfc]['Status']['newOrders'],data[mfc]['Status']['ordersPacked'],data[mfc]['Status']['driversInQueue'],data[mfc]['Status']['driversDelivering'],data[mfc]['Status']['driversReturning']];
+      let outline = [mfc,data[mfc]['Status']['ts'].split('.')[0],data[mfc]['Status']['newOrders'],data[mfc]['Status']['ordersPacked'],data[mfc]['Status']['driversInQueue'],data[mfc]['Status']['driversDelivering'],data[mfc]['Status']['driversReturningAccepted'],data[mfc]['Status']['driversReturningNotAccepted'],data[mfc]['Status']['driversReturning'],data[mfc]['Status']['driversTotal']];
       if (mfc in mfcIndexMap) {
         if (new Date(data[mfc]['Status']['ts'].split('.')[0]).getTime() != new Date(existingRows[mfcIndexMap[mfc]][1]).getTime()) {
           existingRows[mfcIndexMap[mfc]] = outline;
@@ -412,7 +415,7 @@ async function writeToSheet(data) {
     await googleSheets.spreadsheets.values.update({
       auth: auth,
       spreadsheetId: spreadsheetId,
-      range: "Capacity!I1",
+      range: "Capacity!L1",
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [[new Date().toISOString().split('.')[0]]]
