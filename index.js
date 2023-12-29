@@ -231,9 +231,9 @@ function handleMFCState(jsonObj,ts) {
     const driversDelivering = checkKey('number_drivers_in_delivery',jsonObj,0);
     const driversReturningAccepted = checkKey('number_drivers_returning',jsonObj,0);
     const driversTotal = checkKey('number_drivers_total',jsonObj,0);
-    const driversReturning = driversTotal - driversInQueue - driversDelivering
-    const driversReturningNotAccepted = driversReturning - driversReturningAccepted
-    
+    const driversReturning = driversTotal - driversInQueue - driversDelivering;
+    const driversReturningNotAccepted = driversReturning - driversReturningAccepted;
+
     dataObj = recursiveAdd(dataObj,['MFC Data',mfc,'Status'],{ts,newOrders,ordersPacked,driversInQueue,driversDelivering,driversReturningAccepted,driversReturningNotAccepted,driversReturning,driversTotal});
   }
 }
@@ -371,7 +371,7 @@ async function writeToSheet(data) {
     const response = await googleSheets.spreadsheets.values.get({
       auth,
       spreadsheetId,
-      range: "Capacity!A2:G"
+      range: "Capacity!A2:J"
     });
 
     
